@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 import logging
 import sys
 import warnings
@@ -20,7 +18,7 @@ from evidently.metric_preset import DataDriftPreset, RegressionPreset
 
 class RegressionFlow(FlowSpec):
 
-    data_path = Parameter('data_path', default="fact_visits_final_rev01.csv")
+    data_path = Parameter('data_path', default="Data/fact_visits_final_rev01.csv")
 
     @step
     def start(self):
@@ -40,25 +38,10 @@ class RegressionFlow(FlowSpec):
 
     @step
     def load_data(self):
-        load_dotenv()
-        connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-
-        if not connection_string:
-            raise ValueError("AZURE_STORAGE_CONNECTION_STRING environment variable is not set")
-        
-        container_name = "data"
-        blob_name = self.data_path
-
-        blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-        blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
-
-        with open(blob_name, "wb") as download_file:
-            download_file.write(blob_client.download_blob().readall())
-
-        self.df_visits = pd.read_csv(blob_name).copy()
-        os.remove(blob_name)  # Clean up the local file after loading into DataFrame
+    
+        self.df_visits = pd.read_csv(self.data_path).copy()
         print(f"Data loaded with shape: {self.df_visits.shape}")
-        # mlflow.log_param("data_path", self.data_path)
+        mlflow.log_param("data_path", self.data_path)
         self.next(self.transform_data)
     
 
