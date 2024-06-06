@@ -138,6 +138,15 @@ class RegressionFlow(FlowSpec):
 
     @step
     def generate_reports(self):
+
+        # Add predictions to the reference and current datasets
+        self.reference_data['prediction'] = self.model_rf.predict(self.reference_data.drop(columns=['hba1c']))
+        self.current_data['prediction'] = self.model_rf.predict(self.current_data.drop(columns=['hba1c']))
+
+        # Rename the 'hba1c' column to 'target' as required by Evidently metrics
+        self.reference_data.rename(columns={'hba1c': 'target'}, inplace=True)
+        self.current_data.rename(columns={'hba1c': 'target'}, inplace=True)
+
         
         # Evidently AI monitoring and reports
         # Data Drift Report
