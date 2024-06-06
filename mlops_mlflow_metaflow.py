@@ -143,12 +143,12 @@ class RegressionFlow(FlowSpec):
         # Data Drift Report
         drift_report = Report(metrics=[DataDriftPreset()])
         drift_report.run(reference_data=self.reference_data, current_data=self.current_data)
-        drift_report.save("data_drift_report.html")
+        drift_report.save_html("data_drift_report.html")
         
         # Regression Performance Report
         reg_report = Report(metrics=[RegressionPreset()])
         reg_report.run(reference_data=self.reference_data, current_data=self.current_data)
-        reg_report.save("regression_performance_report.html")
+        reg_report.save_html("regression_performance_report.html")
 
         # Log reports to MLflow
         mlflow.log_artifact("data_drift_report.html")
