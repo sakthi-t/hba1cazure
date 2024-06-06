@@ -14,8 +14,9 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from evidently.dashboard import Dashboard
-from evidently.dashboard.tabs import DataDriftTab
+from evidently.report import Report
+from evidently.metric_preset import DataDriftPreset, RegressionPreset
+
 
 class RegressionFlow(FlowSpec):
 
@@ -45,7 +46,7 @@ class RegressionFlow(FlowSpec):
         if not connection_string:
             raise ValueError("AZURE_STORAGE_CONNECTION_STRING environment variable is not set")
         
-
+        container_name = "data"
         blob_name = self.data_path
 
         blob_service_client = BlobServiceClient.from_connection_string(connection_string)
@@ -75,6 +76,11 @@ class RegressionFlow(FlowSpec):
 
         # Dropping the original visited date column
         self.data = self.data.drop(columns=['visited_date'])
+
+        # Split data into reference and current datasets
+        self.reference_data = self.data.sample(n=1000, replace=False)
+        self.current_data = self.data.drop(self.reference_data.index)
+
         self.next(self.define_features_target)
         
 
@@ -127,14 +133,29 @@ class RegressionFlow(FlowSpec):
         mlflow.log_metric("mae_rf", self.mae_rf)
         mlflow.log_metric("r2_rf", self.r2_rf)
 
-        # Evidently AI monitoring
+        self.next(self.generate_reports)
+
+
+    @step
+    def generate_reports(self):
         
-        dashboard = Dashboard(tabs=[DataDriftTab()])
-        dashboard.calculate(self.X_train, self.X_test)
-        dashboard.save("evidently_report.html")
+        # Evidently AI monitoring and reports
+        # Data Drift Report
+        drift_report = Report(metrics=[DataDriftPreset()])
+        drift_report.run(reference_data=self.reference_data, current_data=self.current_data)
+        drift_report.save("data_drift_report.html")
         
-        mlflow.log_artifact("evidently_report.html")
+        # Regression Performance Report
+        reg_report = Report(metrics=[RegressionPreset()])
+        reg_report.run(reference_data=self.reference_data, current_data=self.current_data)
+        reg_report.save("regression_performance_report.html")
+
+        # Log reports to MLflow
+        mlflow.log_artifact("data_drift_report.html")
+        mlflow.log_artifact("regression_performance_report.html")
+
         self.next(self.end)
+        
     
     @step
     def end(self):
